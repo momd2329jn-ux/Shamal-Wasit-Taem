@@ -11,7 +11,7 @@
 <header class="site-header"><div class="container header-inner">
 <a class="brand" href="index.html"><img src="images/logo.png" alt="شعار فريق شمال واسط"><span>فريق شمال واسط</span></a>
 <button class="menu-button" id="menuButton" aria-label="فتح القائمة">☰</button>
-<nav id="mainNav" class="main-nav"></nav>
+<nav id="mainNav" class="main-nav">
     <a href="index.html">الرئيسية</a><a href="index.html#categories">الأقسام</a><a href="index.html#about">عن الفريق</a><a class="active" href="admin.html">لوحة الإدارة</a></nav>
 </div></header>
 <main>
@@ -41,8 +41,28 @@
 <h3 id="formTitle">إضافة منشور جديد</h3>
 <label>القسم<select id="category" required><option value="news">📰 الأخبار</option><option value="events">📅 الفعاليات</option><option value="articles">📚 المقالات</option><option value="health">🩺 الصحة</option><option value="environment">🌱 البيئة</option></select></label>
 <label>عنوان المنشور<input id="title" maxlength="180" required></label>
-<label>المحتوى<textarea id="content" rows="8" maxlength="10000" required></textarea></label>
-<label>رابط الصورة (اختياري)<input id="imageUrl" type="url" placeholder="https://..."></label>
+<label>المحتوى<textarea id="content" rows="8" maxlength="10000" required></textarea>
+</label>
+<label class="image-upload-field">
+  صورة المنشور (اختياري)
+
+  <input
+    id="imageFile"
+    type="file"
+    accept="image/*"
+  >
+
+  <small class="field-hint">
+    اختر صورة من معرض جهازك، وسيتم ضغطها تلقائيًا.
+  </small>
+
+  <div id="imagePreview" class="image-preview" hidden>
+    <img id="imagePreviewImg" alt="معاينة صورة المنشور">
+    <button type="button" id="removeImage" class="btn mini danger">
+      إزالة الصورة
+    </button>
+  </div>
+</label>
 <label id="eventDateWrap" hidden>تاريخ الفعالية (اختياري)<input id="eventDate" type="date"></label>
 <div class="form-actions"><button class="btn primary" type="submit" id="saveBtn">حفظ المنشور</button><button class="btn secondary-btn" type="button" id="cancelEdit" hidden>إلغاء التعديل</button></div>
 <div id="formMessage" class="form-message" role="status"></div>
