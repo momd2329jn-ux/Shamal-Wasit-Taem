@@ -8,13 +8,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function userDocExists() {
-      return signedIn()
-        && exists(
-          /databases/$(database)/documents/users/$(request.auth.uid)
-        );
-    }
-
     function userDoc() {
       return get(
         /databases/$(database)/documents/users/$(request.auth.uid)
@@ -22,19 +15,18 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return userDocExists()
+      return signedIn()
         && userDoc().data.role == 'admin';
     }
 
-    function hasPermission(p) {
-      return isAdmin()
-        || (
-          userDocExists()
-          && userDoc().data.role == 'supervisor'
-          && p in userDoc().data.permissions
-        );
-    }
-
+   function hasPermission(p) {
+  return isAdmin()
+    || (
+      signedIn()
+      && userDoc().data.role == 'supervisor'
+      && p in userDoc().data.permissions
+    );
+}
 
     /* =========================
        المستخدمون
@@ -42,24 +34,21 @@ service cloud.firestore {
 
     match /users/{uid} {
 
-      allow read:
-        if signedIn()
+      allow read: if signedIn()
         && (
           request.auth.uid == uid
           || hasPermission('members')
           || isAdmin()
         );
 
-      allow create:
-        if isAdmin()
+      allow create: if isAdmin()
         || (
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.role == 'user'
         );
 
-      allow update:
-        if isAdmin()
+      allow update: if isAdmin()
         || (
           signedIn()
           && request.auth.uid == uid
@@ -67,8 +56,7 @@ service cloud.firestore {
           && request.resource.data.permissions == resource.data.permissions
         );
 
-      allow delete:
-        if isAdmin();
+      allow delete: if isAdmin();
     }
 
 
@@ -143,24 +131,14 @@ service cloud.firestore {
 
     match /inquiries/{id} {
 
-      /*
-        أي زائر لديه Firebase Auth
-        يستطيع إنشاء استفسار باسمه.
-        
-        Anonymous أيضًا لديه UID،
-        لذلك يعمل هنا بدون تسجيل.
-      */
+      /* العضو يستطيع إرسال استفساره */
       allow create:
         if signedIn()
         && request.resource.data.userId == request.auth.uid;
 
 
-      /*
-        الإدارة ترى كل الاستفسارات.
-
-        المستخدم العادي أو Anonymous
-        يرى استفساراته فقط.
-      */
+      /* الإدارة ترى كل الاستفسارات،
+         والعضو يرى استفساراته فقط */
       allow read:
         if hasPermission('inquiries')
         || (
@@ -169,12 +147,8 @@ service cloud.firestore {
         );
 
 
-      /*
-        الإدارة تستطيع تعديل الاستفسارات والرد عليها.
-
-        صاحب الاستفسار يستطيع فقط
-        تغيير userSeen إلى true.
-      */
+      /* الإدارة تستطيع الرد والتعديل،
+         والعضو يستطيع فقط وضع userSeen = true */
       allow update:
         if hasPermission('inquiries')
         || (
@@ -188,12 +162,9 @@ service cloud.firestore {
         );
 
 
-      /*
-        حذف الاستفسارات للإدارة فقط.
-      */
+      /* حذف الاستفسارات للإدارة فقط */
       allow delete:
         if hasPermission('inquiries');
     }
-
   }
 }
