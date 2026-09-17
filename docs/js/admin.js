@@ -805,16 +805,9 @@ $('inquiriesList').addEventListener(
             reply:text,
             repliedAt:
               firebase.firestore.FieldValue.serverTimestamp(),
-            status:'replied',
-            adminSeen:true,
-            userSeen:false
+            status:'replied'
           });
 
-        const inquiryDoc=await db.collection('inquiries').doc(reply.dataset.id).get();
-        const inquiryData=inquiryDoc.exists?inquiryDoc.data():{};
-        if(window.WasitNotifications&&inquiryData.userId){
-          WasitNotifications.notifyReply(inquiryData.userId,inquiryData.title||'استفسار');
-        }
         await loadInquiries();
 
       }catch(err){
@@ -955,11 +948,6 @@ $('postForm').addEventListener(
         await db
           .collection(cfg.collection)
           .add(data);
-
-        // إشعار للأعضاء بوجود منشور جديد. فشل الإشعار لا يمنع حفظ المنشور.
-        if(window.WasitNotifications){
-          WasitNotifications.notifyNewPost(cfg.title||key,data.title).catch(()=>{});
-        }
       }
 
       showMessage(
@@ -1043,7 +1031,10 @@ auth.onAuthStateChanged(
   async user=>{
 
     if(!user){
-      location.href='login.html?next=admin.html';
+
+      location.href=
+        'login.html?next=admin.html';
+
       return;
     }
 
@@ -1056,12 +1047,12 @@ auth.onAuthStateChanged(
         .doc(user.uid)
         .get();
 
-      const adminData=doc.exists?(doc.data()||{}):{};
-      const adminRole=String(adminData.role||'').trim().toLowerCase();
-      const adminPermissions=Array.isArray(adminData.permissions)?adminData.permissions:[];
-      const authorizedAdmin=adminRole==='admin'||(adminRole==='supervisor'&&adminPermissions.length>0);
-
-      if(!doc.exists||!authorizedAdmin){
+      if(
+        !doc.exists||
+        !['admin','supervisor'].includes(
+          doc.data().role
+        )
+      ){
 
         $('adminGate').innerHTML=
           'ليس لديك صلاحية للوصول إلى لوحة الإدارة.<br>'+
@@ -1072,8 +1063,13 @@ auth.onAuthStateChanged(
         return;
       }
 
-      currentUserRole=adminRole||'user';
-      currentPermissions=adminPermissions;
+      currentUserRole=
+        doc.data().role||'user';
+
+      currentPermissions=
+        Array.isArray(doc.data().permissions)
+          ?doc.data().permissions
+          :[];
 
       $('adminGate').hidden=true;
 
@@ -1184,9 +1180,8 @@ auth.onAuthStateChanged(
 
       console.error(e);
 
-      $('adminGate').innerHTML=
-        'تعذر التحقق من صلاحيات الحساب. تحقق من تسجيل الدخول وقواعد Firestore.<br>'+
-        '<a class="btn primary" href="login.html?next=admin.html">العودة لتسجيل الدخول</a>';
+      $('adminGate').textContent=
+        'تعذر التحقق من صلاحيات الحساب.';
     }
 
   }

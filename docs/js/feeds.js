@@ -65,8 +65,8 @@ function postCard(d, id) {
   return `
     <article class="post-card">
       ${
-        (d.imageData || d.imageUrl)
-          ? `<img src="${esc(d.imageData || d.imageUrl)}" alt="" loading="lazy">`
+        d.imageUrl
+          ? `<img src="${esc(d.imageUrl)}" alt="" loading="lazy">`
           : ''
       }
 
