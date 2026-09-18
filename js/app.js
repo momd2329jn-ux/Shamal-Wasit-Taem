@@ -16,51 +16,51 @@ document.addEventListener('DOMContentLoaded',()=>{
   const member=n.querySelector('[data-nav="member"]');
   const admin=n.querySelector('[data-nav="admin"]');
 
-  const setNav=(signed)=>{
+  // دالة ضبط الهيدر حسب حالة المستخدم
+  const setNav=(signed, role='user')=>{
     if(authLink){
-      authLink.hidden=signed;
-      authLink.textContent='تسجيل الدخول';
-      authLink.href='login.html';
+      authLink.hidden = signed;
     }
     if(member){
-      member.hidden=!signed;
-      member.textContent='حسابي';
-      member.href='member.html';
+      member.hidden = !signed;
     }
-    if(admin)admin.hidden=true;
+    if(admin){
+      admin.hidden = !(signed && (role==='admin'||role==='supervisor'));
+    }
   };
 
+  // دالة قراءة الدور من Firestore
   const applyNav=async(user)=>{
-  const signed=!!user && user.isAnonymous!==true;
-  setNav(signed);
-  if(!signed)return;
-
-  try{
-    const snap=await db.collection('users').doc(user.uid).get();
-    if(!snap.exists)return;
-
-    const role=String(snap.data().role||'user').trim().toLowerCase();
-    
-    if(admin && (role==='admin'||role==='supervisor')){
-      admin.hidden=false;
-    } else if(admin){
-      admin.hidden=true;
+    if(!user || user.isAnonymous===true){
+      setNav(false);
+      return;
     }
-  }catch(e){
-    console.error('NAV ROLE CHECK ERROR:',e);
-    if(admin)admin.hidden=true;
-  }
-};
 
-  if(window.auth){
-  auth.onAuthStateChanged(applyNav);
-} else {
-  const waitForAuth = setInterval(() => {
-    if (window.auth) {
-      clearInterval(waitForAuth);
+    try{
+      const snap = await db.collection('users').doc(user.uid).get();
+      const role = snap.exists 
+        ? String(snap.data().role || 'user').trim().toLowerCase() 
+        : 'user';
+      
+      setNav(true, role);
+    }catch(e){
+      console.error('NAV ROLE CHECK ERROR:',e);
+      setNav(true, 'user'); // على الأقل يظهر "حسابي"
+    }
+  };
+
+  // الانتظار حتى Firebase يكون جاهز
+  const initNav = () => {
+    if(window.auth && window.db){
       auth.onAuthStateChanged(applyNav);
+    } else {
+      setTimeout(initNav, 100);
     }
-  }, 100);
-  setTimeout(() => clearInterval(waitForAuth), 5000);
-}
+  };
+  initNav();
+
+  // تسجيل Service Worker
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
 });
