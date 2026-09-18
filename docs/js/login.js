@@ -4,6 +4,25 @@ const msg = document.getElementById('loginMessage');
 const next =
   new URLSearchParams(location.search).get('next');
 
+// إذا كان المستخدم مسجل الدخول مسبقًا فلا نطلب منه تسجيل الدخول مرة أخرى.
+if(window.auth){
+  auth.onAuthStateChanged(async user=>{
+    if(!user || user.isAnonymous===true)return;
+    try{
+      const snap=await db.collection('users').doc(user.uid).get();
+      const role=snap.exists ? String(snap.data().role||'user').trim().toLowerCase() : 'user';
+      if(next){
+        location.href=next;
+        return;
+      }
+      location.href=['admin','supervisor'].includes(role)?'admin.html':'member.html';
+    }catch(e){
+      console.error('AUTH REDIRECT ERROR:',e);
+      location.href=next || 'member.html';
+    }
+  });
+}
+
 form.addEventListener('submit', async (e) => {
 
   e.preventDefault();

@@ -10,6 +10,12 @@ const educationEl = document.getElementById('education');
 const emailEl = document.getElementById('email');
 const passwordEl = document.getElementById('password');
 
+if(window.auth){
+  auth.onAuthStateChanged(user=>{
+    if(user && user.isAnonymous!==true)location.href='member.html';
+  });
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
 

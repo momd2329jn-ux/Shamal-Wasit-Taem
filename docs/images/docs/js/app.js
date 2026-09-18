@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
 
   if(window.auth){
-  
     auth.onAuthStateChanged(applyNav);
   }else{
     setNav(false);

@@ -85,65 +85,139 @@ async function compressImage(file){
     throw new Error('الملف المختار ليس صورة.');
   }
 
-  const originalUrl = URL.createObjectURL(file);
+  const originalUrl=URL.createObjectURL(file);
 
   try{
-    const img = new Image();
+    const img=new Image();
+
     await new Promise((resolve,reject)=>{
-      img.onload = resolve;
-      img.onerror = () => reject(new Error('تعذر فتح الصورة.'));
-      img.src = originalUrl;
+      img.onload=resolve;
+      img.onerror=()=>reject(new Error('تعذر فتح الصورة.'));
+      img.src=originalUrl;
     });
 
-    const MAX_SIZE = 800;
-    let width = img.naturalWidth;
-    let height = img.naturalHeight;
+    // الحد الأقصى لأبعاد الصورة
+    const MAX_SIZE=1200;
 
-    if(width > MAX_SIZE || height > MAX_SIZE){
-      if(width >= height){
-        height = Math.round(height * (MAX_SIZE / width));
-        width = MAX_SIZE;
-      } else {
-        width = Math.round(width * (MAX_SIZE / height));
-        height = MAX_SIZE;
+    let width=img.naturalWidth;
+    let height=img.naturalHeight;
+
+    if(width>MAX_SIZE||height>MAX_SIZE){
+      if(width>=height){
+        height=Math.round(height*(MAX_SIZE/width));
+        width=MAX_SIZE;
+      }else{
+        width=Math.round(width*(MAX_SIZE/height));
+        height=MAX_SIZE;
       }
     }
 
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
+    const canvas=document.createElement('canvas');
+    canvas.width=width;
+    canvas.height=height;
+
+    const ctx=canvas.getContext('2d');
+
+    if(!ctx){
+      throw new Error('المتصفح لا يدعم معالجة الصور.');
+    }
+
+    // خلفية بيضاء حتى صور PNG الشفافة ما تسبب مشاكل
+    ctx.fillStyle='#ffffff';
     ctx.fillRect(0,0,width,height);
+
     ctx.drawImage(img,0,0,width,height);
 
-    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.7));
-    
+    /*
+      نحاول WebP أولاً لأنه أصغر حجمًا.
+      وإذا كان الحجم كبيرًا نقلل الجودة تدريجيًا.
+    */
+    let blob=null;
+    let type='image/webp';
+
+    const qualities=[0.78,0.68,0.58,0.48];
+
+    for(const quality of qualities){
+      blob=await canvasToBlob(canvas,type,quality);
+
+      if(blob&&blob.size<=450*1024){
+        break;
+      }
+    }
+
+    // إذا WebP غير مدعوم نستخدم JPEG
+    if(!blob){
+      type='image/jpeg';
+
+      for(const quality of qualities){
+        blob=await canvasToBlob(canvas,type,quality);
+
+        if(blob&&blob.size<=450*1024){
+          break;
+        }
+      }
+    }
+
     if(!blob){
       throw new Error('تعذر ضغط الصورة.');
     }
 
-    if(blob.size > 700*1024){
-      blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.5));
+    /*
+      إذا بقي الحجم أكبر من 450KB،
+      نصغّر الأبعاد مرة إضافية.
+    */
+    if(blob.size>450*1024){
+
+      const smallerCanvas=document.createElement('canvas');
+
+      const factor=Math.sqrt((450*1024)/blob.size);
+
+      smallerCanvas.width=Math.max(400,Math.round(width*factor));
+      smallerCanvas.height=Math.max(400,Math.round(height*factor));
+
+      const smallerCtx=smallerCanvas.getContext('2d');
+
+      smallerCtx.fillStyle='#ffffff';
+      smallerCtx.fillRect(
+        0,
+        0,
+        smallerCanvas.width,
+        smallerCanvas.height
+      );
+
+      smallerCtx.drawImage(
+        img,
+        0,
+        0,
+        smallerCanvas.width,
+        smallerCanvas.height
+      );
+
+      blob=await canvasToBlob(
+        smallerCanvas,
+        type,
+        0.55
+      );
     }
 
-    if(blob.size > 900*1024){
-      throw new Error('الصورة كبيرة جداً. جرّب صورة أصغر.');
+    if(!blob){
+      throw new Error('تعذر تجهيز الصورة.');
     }
 
-    const dataUrl = await new Promise((resolve,reject)=>{
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('تعذر قراءة الصورة'));
-      reader.readAsDataURL(new File([blob], 'post.jpg', {type: blob.type}));
-    });
+    // تحويل الصورة المضغوطة إلى Base64
+    const dataUrl=await fileToDataURL(
+      new File([blob],'post-image',{
+        type:blob.type
+      })
+    );
 
     return dataUrl;
 
-  } finally {
+  }finally{
     URL.revokeObjectURL(originalUrl);
   }
 }
+
 
 // اختيار صورة من الجهاز
 const imageFileInput=$('imageFile');
@@ -922,7 +996,7 @@ $('logoutBtn').addEventListener(
   'click',
   async()=>{
     await auth.signOut();
-    location.href='index.html';
+    location.href='login.html';
   }
 );
 

@@ -31,33 +31,36 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
 
   const applyNav=async(user)=>{
-    const signed=!!user && user.isAnonymous!==true;
-    setNav(signed);
-    if(!signed)return;
+  const signed=!!user && user.isAnonymous!==true;
+  setNav(signed);
+  if(!signed)return;
 
-    try{
-      // نقرأ دور الحساب مباشرة من Firestore في كل صفحة.
-      // المدير والمشرف فقط يحصلان على رابط لوحة التحكم.
-      const snap=await db.collection('users').doc(user.uid).get();
-      if(!snap.exists)return;
+  try{
+    const snap=await db.collection('users').doc(user.uid).get();
+    if(!snap.exists)return;
 
-      const role=String(snap.data().role||'user').trim().toLowerCase();
-      if(admin && (role==='admin'||role==='supervisor')){
-        admin.hidden=false;
-      }
-    }catch(e){
-      console.error('NAV ROLE CHECK ERROR:',e);
-      if(admin)admin.hidden=true;
+    const role=String(snap.data().role||'user').trim().toLowerCase();
+    
+    if(admin && (role==='admin'||role==='supervisor')){
+      admin.hidden=false;
+    } else if(admin){
+      admin.hidden=true;
     }
-  };
+  }catch(e){
+    console.error('NAV ROLE CHECK ERROR:',e);
+    if(admin)admin.hidden=true;
+  }
+};
 
   if(window.auth){
-    auth.onAuthStateChanged(applyNav);
-  }else{
-    setNav(false);
-  }
-
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-  }
+  auth.onAuthStateChanged(applyNav);
+} else {
+  const waitForAuth = setInterval(() => {
+    if (window.auth) {
+      clearInterval(waitForAuth);
+      auth.onAuthStateChanged(applyNav);
+    }
+  }, 100);
+  setTimeout(() => clearInterval(waitForAuth), 5000);
+}
 });
