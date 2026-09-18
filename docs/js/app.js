@@ -16,47 +16,45 @@ document.addEventListener('DOMContentLoaded',()=>{
   const member=n.querySelector('[data-nav="member"]');
   const admin=n.querySelector('[data-nav="admin"]');
 
-  const setNav=(signed)=>{
+  const setNav=(signed, role='user')=>{
     if(authLink){
-      authLink.hidden=signed;
-      authLink.textContent='تسجيل الدخول';
-      authLink.href='login.html';
+      authLink.hidden = signed;
     }
     if(member){
-      member.hidden=!signed;
-      member.textContent='حسابي';
-      member.href='member.html';
+      member.hidden = !signed;
     }
-    if(admin)admin.hidden=true;
+    if(admin){
+      admin.hidden = !(signed && (role==='admin'||role==='supervisor'));
+    }
   };
 
   const applyNav=async(user)=>{
-    const signed=!!user && user.isAnonymous!==true;
-    setNav(signed);
-    if(!signed)return;
+    if(!user || user.isAnonymous===true){
+      setNav(false);
+      return;
+    }
 
     try{
-      // نقرأ دور الحساب مباشرة من Firestore في كل صفحة.
-      // المدير والمشرف فقط يحصلان على رابط لوحة التحكم.
-      const snap=await db.collection('users').doc(user.uid).get();
-      if(!snap.exists)return;
-
-      const role=String(snap.data().role||'user').trim().toLowerCase();
-      if(admin && (role==='admin'||role==='supervisor')){
-        admin.hidden=false;
-      }
+      const snap = await db.collection('users').doc(user.uid).get();
+      const role = snap.exists 
+        ? String(snap.data().role || 'user').trim().toLowerCase() 
+        : 'user';
+      
+      setNav(true, role);
     }catch(e){
       console.error('NAV ROLE CHECK ERROR:',e);
-      if(admin)admin.hidden=true;
+      setNav(true, 'user');
     }
   };
 
-  if(window.auth){
-  
-    auth.onAuthStateChanged(applyNav);
-  }else{
-    setNav(false);
-  }
+  const initNav = () => {
+    if(window.auth && window.db){
+      auth.onAuthStateChanged(applyNav);
+    } else {
+      setTimeout(initNav, 100);
+    }
+  };
+  initNav();
 
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
